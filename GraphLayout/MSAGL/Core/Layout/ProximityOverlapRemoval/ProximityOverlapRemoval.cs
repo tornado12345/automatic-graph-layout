@@ -314,9 +314,6 @@ namespace Microsoft.Msagl.Core.Layout.ProximityOverlapRemoval {
 #endif
             // init some things
             InitNodePositionsAndBoxes(Settings, _nodes, out nodePositions, out nodeSizes);
-
-            if (!(Settings.InitialScaling == InitialScaling.None))
-                DoInitialScaling();
             InitStressWithGraph(StressSolver, _nodes, nodePositions);
 #if DEBUG
             //debugging the node movements
@@ -505,7 +502,7 @@ namespace Microsoft.Msagl.Core.Layout.ProximityOverlapRemoval {
                                                        Point[] nodePositions, List<Point> newPositions,
                                                        List<Tuple<int, int, double, double>> proximityEdgesWithDistance,
                                                        Point[] finalGridVectors) {
-#if DEBUG && ! SILVERLIGHT && !SHARPKIT
+#if DEBUG && ! SILVERLIGHT && !SHARPKIT && !NETCORE
             if (DebugMode && currentIteration%1 == 0) {
                 List<DebugCurve> curveList = new List<DebugCurve>();
                 var nodeBoxes = new Rectangle[nodeSizes.Length];
@@ -597,22 +594,6 @@ namespace Microsoft.Msagl.Core.Layout.ProximityOverlapRemoval {
 //            }
         }
 
-        double AvgEdgeLength(Edge[] edges) {
-            Debug.Assert(edges.Length > 0);
-            int i = 0;
-            double avgEdgeLength = 0;
-            foreach (Edge edge in edges) {
-                Point sPoint = edge.Source.Center;
-                Point tPoint = edge.Target.Center;
-                double euclid = (sPoint - tPoint).Length;
-                avgEdgeLength += euclid;
-                i++;
-            }
-            avgEdgeLength /= i;
-            return avgEdgeLength;
-        }
-
-
         internal static Point[] InitNodePositionsAndBoxes(OverlapRemovalSettings overlapRemovalSettings,
                                                           Node[] nodes, out Point[] nodePositions,
                                                           out Size[] nodeSizes) {
@@ -665,7 +646,7 @@ namespace Microsoft.Msagl.Core.Layout.ProximityOverlapRemoval {
             return numCrossings;
         }
 
-
+#if DEBUG
          int CountCrossingsWithRTree(Size[] nodeSizes) {
             RectangleNode<int> rootNode =
                 RectangleNode<int>.CreateRectangleNodeOnEnumeration(
@@ -679,6 +660,7 @@ namespace Microsoft.Msagl.Core.Layout.ProximityOverlapRemoval {
 
             return numCrossings;
         }
+#endif
 
          static Size[] GetNodeSizesByPaddingWithHalfSeparation(Node[] nodes, double nodeSeparation) {
             if (nodes == null) return null;

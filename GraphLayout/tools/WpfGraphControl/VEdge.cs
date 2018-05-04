@@ -285,7 +285,6 @@ namespace Microsoft.Msagl.WpfGraphControl {
 
         static readonly double HalfArrowAngleTan = Math.Tan(ArrowAngle * 0.5 * Math.PI / 180.0);
         static readonly double HalfArrowAngleCos = Math.Cos(ArrowAngle * 0.5 * Math.PI / 180.0);
-        internal byte Transparency = 255;
         const double ArrowAngle = 30.0; //degrees
 
         #region Implementation of IViewerObject
@@ -329,10 +328,6 @@ namespace Microsoft.Msagl.WpfGraphControl {
             SetPathStroke();
             if (VLabel != null)
                 ((IInvalidatable) VLabel).Invalidate();
-        }
-
-        void InvalidateForLgCase() {
-            throw new NotImplementedException();
         }
 
         void SetPathStroke() {
@@ -393,7 +388,7 @@ namespace Microsoft.Msagl.WpfGraphControl {
             return Edge.ToString();
         }
 
-        internal static double dashSize = 0.05; //inches
+        internal static double _dashSize = 0.05; //inches
         internal Func<double> PathStrokeThicknessFunc;
 
         public VEdge(Edge edge, LgLayoutSettings lgSettings) {
@@ -404,8 +399,8 @@ namespace Microsoft.Msagl.WpfGraphControl {
         internal double DashSize()
         {
             var w = PathStrokeThickness;
-            var dashSizeInPoints = dashSize * GraphViewer.DpiXStatic;
-            return dashSize = dashSizeInPoints / w;
+            var dashSizeInPoints = _dashSize * GraphViewer.DpiXStatic;
+            return dashSizeInPoints / w;
         }
 
         internal void RemoveItselfFromCanvas(Canvas graphCanvas) {

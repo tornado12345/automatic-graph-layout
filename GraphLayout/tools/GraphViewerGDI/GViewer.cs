@@ -508,9 +508,8 @@ namespace Microsoft.Msagl.GraphViewerGdi {
                         try {
                             if (NeedToCalculateLayout) {
                                 OriginalGraph.GeometryGraph = null;
-                                DGraph dg = LayoutAndCreateDGraph();
+                                LayoutAndCreateDGraph();
                                 InitiateDrawing();
-                                DGraph = dg;
                             }
                             else {
                                 InitiateDrawing();
@@ -1103,9 +1102,9 @@ namespace Microsoft.Msagl.GraphViewerGdi {
             SetTransformOnScaleAndCenter(scale, sourceCenter);
         }
 
-        internal void SetTransformOnScaleAndCenter(double scale, Point sourceCenter) {
-
-            if (OriginalGraph!=null && OriginalGraph.BoundingBox.Diagonal * scale < 5) //less than 5 pixels
+        internal void SetTransformOnScaleAndCenter(double scale, Point sourceCenter)
+        {
+            if (!ScaleIsAcceptable(scale))
                 return;
                 
             var dx = PanelWidth/2.0 - scale*sourceCenter.X;
@@ -1198,7 +1197,7 @@ namespace Microsoft.Msagl.GraphViewerGdi {
                             if (needToCalc) {
                                 if (AsyncLayoutProgress != null)
                                     AsyncLayoutProgress(this, args);
-                                DGraph = LayoutAndCreateDGraph();
+                                LayoutAndCreateDGraph();
                             }
                             else {
                                 DGraph = DGraph.CreateDGraphFromPrecalculatedDrawingGraph(OriginalGraph, this);
@@ -1339,14 +1338,8 @@ namespace Microsoft.Msagl.GraphViewerGdi {
                 (int) Math.Ceiling(pts[1].Y) + 1);
         }
 
-        static PointF Pf(Point p2) {
+        internal static PointF Pf(Point p2) {
             return new PointF((float) p2.X, (float) p2.Y);
-        }
-
-
-        void ScrollHandler(object o, ScrollEventArgs args) {
-            //    if(args.Type==  ScrollEventType.EndScroll)
-            panel.Invalidate();
         }
 
         /// <summary>
@@ -1367,11 +1360,6 @@ namespace Microsoft.Msagl.GraphViewerGdi {
 
         internal Point ScreenToSource(int x, int y) {
             return ScreenToSource(new System.Drawing.Point(x, y));
-        }
-
-
-        static int Int(double f) {
-            return (int) (f + 0.5);
         }
 
 
@@ -1422,33 +1410,40 @@ namespace Microsoft.Msagl.GraphViewerGdi {
         }
 
 
-        internal void ProcessOnPaint(Graphics g, PrintPageEventArgs printPageEvenArgs) {
+        internal void ProcessOnPaint(Graphics g, PrintPageEventArgs printPageEvenArgs)
+        {
             if (PanelHeight < minimalSizeToDraw || PanelWidth < minimalSizeToDraw || DGraph == null)
                 return;
-            if (wasMinimized) {
+            if (wasMinimized)
+            {
                 wasMinimized = false;
                 panel.Invalidate();
             }
 
-            if (OriginalGraph != null) {
+            if (OriginalGraph != null)
+            {
                 CalcRects(printPageEvenArgs);
                 HandleViewInfoList();
-                if (printPageEvenArgs == null) {
+                if (printPageEvenArgs == null)
+                {
                     g.FillRectangle(outsideAreaBrush, ClientRectangle);
                     g.FillRectangle(new SolidBrush(Draw.MsaglColorToDrawingColor(OriginalGraph.Attr.BackgroundColor)),
                                     destRect);
                 }
 
-                using (Matrix m = CurrentTransform()) {
+                using (Matrix m = CurrentTransform())
+                {
+                    if (!m.IsInvertible) // just to make sure that the transform is legal
+                        return;
                     g.Transform = m;
-
+                    
                     g.Clip = new Region(SrcRect);
                     if (DGraph == null)
                         return;
 
                     double scale = CurrentScale;
                     foreach (IViewerObject viewerObject in Entities)
-                        ((DObject) viewerObject).UpdateRenderedBox();
+                        ((DObject)viewerObject).UpdateRenderedBox();
 
                     DGraph.DrawGraph(g);
 
@@ -1460,7 +1455,8 @@ namespace Microsoft.Msagl.GraphViewerGdi {
                                dGraph.DrawingGraph.DebugICurves == null
                            )
 #endif
-                        ) {
+                        )
+                    {
                         DGraph.BuildBBHierarchy();
                         bBNode = DGraph.BbNode;
                     }
@@ -1513,7 +1509,7 @@ namespace Microsoft.Msagl.GraphViewerGdi {
         }
 
         [SuppressMessage("Microsoft.Globalization", "CA1300:SpecifyMessageBoxOptions")]
-        DGraph LayoutAndCreateDGraph() {
+        void LayoutAndCreateDGraph() {
             switch (CurrentLayoutMethod) {
                 case LayoutMethod.SugiyamaScheme:
                     if (!(OriginalGraph.LayoutAlgorithmSettings is SugiyamaLayoutSettings))
@@ -1542,19 +1538,18 @@ namespace Microsoft.Msagl.GraphViewerGdi {
             }
             OriginalGraph.CreateGeometryGraph();
             GeometryGraph geometryGraph = OriginalGraph.GeometryGraph;
-            DGraph dGraphLocal = DGraph.CreateDGraphAndGeometryInfo(OriginalGraph, geometryGraph, this);
+            DGraph = DGraph.CreateDGraphAndGeometryInfo(OriginalGraph, geometryGraph, this);
             try {
                 LayoutHelpers.CalculateLayout(geometryGraph, originalGraph.LayoutAlgorithmSettings, null);
             }
             catch (OperationCanceledException) {
                 originalGraph = null;
-                return null;
+                DGraph = null;
             }
             TransferGeometryFromMsaglGraphToGraph(geometryGraph);
             if (GraphChanged != null) {
                 GraphChanged(this, null);
             }
-            return dGraphLocal;
         }
 
 #if DEBUG
@@ -1632,7 +1627,10 @@ namespace Microsoft.Msagl.GraphViewerGdi {
             Core.Geometry.Rectangle bb = BBoxOfObjs(graphElements);
 
             if (!bb.IsEmpty)
-                CenterToPoint(0.5f*(bb.LeftTop + bb.RightBottom));
+            {
+                CenterToPoint(0.5f * (bb.LeftTop + bb.RightBottom));
+            }
+
         }
 
 
@@ -1701,34 +1699,15 @@ namespace Microsoft.Msagl.GraphViewerGdi {
             Pan(point.X, point.Y);
         }
 
-        /// <summary>
-        /// centers the view to the point (x,y)
-        /// </summary>
-        /// <param name="x"></param>
-        /// <param name="y"></param>
-        [SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "y"),
-         SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "x")]
-        public void CenterToPoint(double x, double y) {
-            Zoom(x, y, ZoomF);
-            //int cx = ScaleFromSrcXToScroll(x);
-            //int cy = ScaleFromSrcYToScroll(y);
-
-            //int curCx = (int)(hVal + hLargeChangeF * 0.5f + 0.5f);
-            //int curCy = (int)(vVal + vLargeChangeF * 0.5f + 0.5f);
-
-
-            //hVal += cx - curCx;
-            //vVal += cy - curCy;
-
-            //panel.Invalidate();
-        }
+      
 
         /// <summary>
         /// Centers the view to the point p
         /// </summary>
         /// <param name="point"></param>
         public void CenterToPoint(Point point) {
-            CenterToPoint(point.X, point.Y);
+            SetTransformOnScaleAndCenter(CurrentScale, point);
+            panel.Invalidate();
         }
 
         /// <summary>
@@ -1759,12 +1738,20 @@ namespace Microsoft.Msagl.GraphViewerGdi {
             return GetObjectAt(point.X, point.Y);
         }
 
+        internal bool ScaleIsAcceptable(double scale)
+        {
+            var d = OriginalGraph != null ? OriginalGraph.BoundingBox.Diagonal : 0;
+            return !(d * scale < 5) && !(d * scale > HugeDiagonal);
+        }
         /// <summary>
         /// Zooms in
         /// </summary>
         public void ZoomInPressed() {
+            double zoomFractionLocal = ZoomF * ZoomFactor();
+            if (!ScaleIsAcceptable(CurrentScale * zoomFractionLocal))
+                return;
             ZoomF *= ZoomFactor();
-        }
+    }
 
         /// <summary>
         /// Zooms out
@@ -2124,7 +2111,8 @@ namespace Microsoft.Msagl.GraphViewerGdi {
         /// <returns></returns>
         public object CalculateLayout(Graph graph) {
             OriginalGraph = graph;
-            return LayoutAndCreateDGraph();
+            LayoutAndCreateDGraph();
+            return DGraph;
         }
 
         /// <summary>

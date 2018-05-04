@@ -183,16 +183,6 @@ namespace Microsoft.Msagl.WpfGraphControl {
             OnMouseUp(e);
         }
 
-        
-        void ToggleNodeEdgesSlidingZoom(VNode vnode) {
-            var lgSettings = Graph.LayoutAlgorithmSettings as LgLayoutSettings;
-            if (lgSettings != null)
-                foreach (var ei in vnode.Node.GeometryNode.Edges.Select(e => lgSettings.GeometryEdgesToLgEdgeInfos[e]))
-                    ei.SlidingZoomLevel = ei.SlidingZoomLevel <= 1 ? double.PositiveInfinity : 1;
-            ViewChangeEvent(null, null);
-        }
-
-        
         void HandleClickForEdge(VEdge vEdge) {
             //todo : add a hook
             var lgSettings = Graph.LayoutAlgorithmSettings as LgLayoutSettings;
@@ -373,7 +363,7 @@ namespace Microsoft.Msagl.WpfGraphControl {
                 return HitTestResultBehavior.Continue;
             var tag = frameworkElement.Tag;
             var iviewerObj = tag as IViewerObject;
-            if (iviewerObj != null) {
+            if (iviewerObj != null && iviewerObj.DrawingObject.IsVisible) {
                 if (ObjectUnderMouseCursor is IViewerEdge || ObjectUnderMouseCursor == null
                     ||
                     Panel.GetZIndex(frameworkElement) >
@@ -416,26 +406,34 @@ namespace Microsoft.Msagl.WpfGraphControl {
         }
 
         // Return the result of the hit test to the callback.
-        HitTestResultBehavior MyHitTestResultCallbackWithNoCallbacksToTheUser(HitTestResult result) {
+        HitTestResultBehavior MyHitTestResultCallbackWithNoCallbacksToTheUser(HitTestResult result)
+        {
             var frameworkElement = result.VisualHit as FrameworkElement;
 
             if (frameworkElement == null)
                 return HitTestResultBehavior.Continue;
             object tag = frameworkElement.Tag;
-            if (tag != null) {
+            if (tag != null)
+            {
                 //it is a tagged element
                 var ivo = tag as IViewerObject;
-                if (ivo != null) {
-                    _objectUnderMouseCursor = ivo;
-                    if (tag is VNode || tag is Label)
-                        return HitTestResultBehavior.Stop;
-                }else {
+                if (ivo != null)
+                {
+                    if (ivo.DrawingObject.IsVisible)
+                    {
+                        _objectUnderMouseCursor = ivo;
+                        if (tag is VNode || tag is Label)
+                            return HitTestResultBehavior.Stop;
+                    }
+                }
+                else
+                {
                     System.Diagnostics.Debug.Assert(tag is Rail);
                     _objectUnderMouseCursor = tag;
                     return HitTestResultBehavior.Stop;
                 }
             }
-            
+
             return HitTestResultBehavior.Continue;
         }
 
@@ -453,7 +451,29 @@ namespace Microsoft.Msagl.WpfGraphControl {
             var scale = CurrentScale;
             SetTransform(scale, screenPoint.X - scale * sourcePoint.X, screenPoint.Y + scale * sourcePoint.Y);
         }
+        /// <summary>
+        /// Moves the point to the center of the viewport
+        /// </summary>
+        /// <param name="sourcePoint"></param>
+        public void PointToCenter(Point sourcePoint)
+        {
+            WpfPoint center = new WpfPoint(_graphCanvas.RenderSize.Width / 2, _graphCanvas.RenderSize.Height / 2);
+            SetTransformFromTwoPoints(center, sourcePoint);
+        }
+        public void NodeToCenterWithScale(Drawing.Node node, double scale)
+        {
+            if (node.GeometryNode == null) return;
+            var screenPoint = new WpfPoint(_graphCanvas.RenderSize.Width / 2, _graphCanvas.RenderSize.Height / 2);
+            var sourcePoint = node.BoundingBox.Center;
+            SetTransform(scale, screenPoint.X - scale * sourcePoint.X, screenPoint.Y + scale * sourcePoint.Y);
+        }
 
+        public void NodeToCenter(Drawing.Node node)
+        {
+            if (node.GeometryNode == null) return;
+            PointToCenter(node.GeometryNode.Center);
+        }
+        
         void Pan(MouseEventArgs e) {
             if (UnderLayout)
                 return;
@@ -467,10 +487,6 @@ namespace Microsoft.Msagl.WpfGraphControl {
 
             if (ViewChangeEvent != null)
                  ViewChangeEvent(null, null);
-        }
-
-        WpfPoint MousePositionOnScreen(MouseEventArgs mouseEventArgs) {
-            return mouseEventArgs.GetPosition((FrameworkElement) _graphCanvas.Parent);
         }
 
 //        [System.Runtime.InteropServices.DllImportAttribute("user32.dll", EntryPoint = "SetCursorPos")]
@@ -717,7 +733,7 @@ namespace Microsoft.Msagl.WpfGraphControl {
 //        }
 
 
-        const double DesiredPathThicknessInInches = 0.016;
+        const double DesiredPathThicknessInInches = 0.008;
       
         readonly Dictionary<DrawingObject, Func<DrawingObject, FrameworkElement>> registeredCreators =
             new Dictionary<DrawingObject, Func<DrawingObject, FrameworkElement>>();
@@ -726,7 +742,7 @@ namespace Microsoft.Msagl.WpfGraphControl {
         public string MsaglFileToSave;
 
         double GetBorderPathThickness() {
-            return DesiredPathThicknessInInches*DpiX/CurrentScale;
+            return DesiredPathThicknessInInches*DpiX;
         }
 
         readonly Object _processGraphLock=new object();
@@ -893,36 +909,6 @@ namespace Microsoft.Msagl.WpfGraphControl {
                     }
                 }
         */
-
-
-        void RemoveVNode(Drawing.Node drawingNode) {
-            lock (this) {
-                //            foreach (var outEdge in drawingNode.OutEdges) {
-                //                graph.Edges.Remove(outEdge);
-                //                outEdge.TargetNode.RemoveInEdge(outEdge);
-                //            }
-                //            foreach (var inEdge in drawingNode.InEdges) {
-                //                graph.Edges.Remove(inEdge);
-                //                inEdge.SourceNode.RemoveOutEdge(inEdge);
-                //            }
-                //            var selfEdges = drawingNode.SelfEdges.ToArray();
-                //            foreach (var selfEdge in selfEdges)
-                //                drawingNode.RemoveSelfEdge(selfEdge);
-                //
-                //            foreach (var edge in drawingNode.Edges.Concat(selfEdges)) {
-                //                IViewerObject vedge;
-                //                if (!drawingObjectsToIViewerObjects.TryGetValue(edge, out vedge)) continue;
-                //                
-                //                graphCanvas.Children.Remove(((VEdge)vedge).Path);
-                //                drawingObjectsToIViewerObjects.Remove(edge);
-                //            }
-                var vnode = (VNode) drawingObjectsToIViewerObjects[drawingNode];
-                foreach (var fe in vnode.FrameworkElements)
-                    _graphCanvas.Children.Remove(fe);
-                drawingObjectsToIViewerObjects.Remove(drawingNode);
-                drawingObjectsToFrameworkElements.Remove(drawingNode);
-            }
-        }
 
         /// <summary>
         /// creates a viewer node
@@ -1292,14 +1278,6 @@ namespace Microsoft.Msagl.WpfGraphControl {
         public FrameworkElement CreateAndRegisterFrameworkElementOfDrawingNode(Drawing.Node node) {
             lock (this)
                 return drawingObjectsToFrameworkElements[node] = CreateTextBlockForDrawingObj(node);
-        }
-
-
-        LgNodeInfo GetCorrespondingLgNode(Drawing.Node node) {
-            var lgGraphBrowsingSettings = _drawingGraph.LayoutAlgorithmSettings as LgLayoutSettings;
-            return lgGraphBrowsingSettings == null
-                       ? null
-                       : lgGraphBrowsingSettings.GeometryNodesToLgNodeInfos[node.GeometryNode];
         }
 
         void CreateAndPositionGraphBackgroundRectangle() {
@@ -1807,7 +1785,7 @@ namespace Microsoft.Msagl.WpfGraphControl {
         /// no layout is done, but the overlap is removed for graphs with geometry
         /// </summary>
         public bool NeedToRemoveOverlapOnly { get; set; }
-
+        
 
         public void DrawRubberLine(Point rubberEnd) {
             if (_rubberLinePath == null) {
