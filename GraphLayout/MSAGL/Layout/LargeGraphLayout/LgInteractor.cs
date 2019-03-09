@@ -2,14 +2,9 @@
 using System.CodeDom;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-#if !NETCORE
-using System.Windows.Forms;
-using System.Windows.Media;
-#endif
 using Microsoft.Msagl.Core;
 using Microsoft.Msagl.Core.DataStructures;
 using Microsoft.Msagl.Core.Geometry;
@@ -31,9 +26,6 @@ using Microsoft.Msagl.Miscellaneous.ConstrainedSkeleton;
 using Microsoft.Msagl.Miscellaneous.RegularGrid;
 using Microsoft.Msagl.Miscellaneous.Routing;
 using Microsoft.Msagl.Routing.Visibility;
-#if !NETCORE
-using Brushes = System.Windows.Media.Brushes;
-#endif
 using Edge = Microsoft.Msagl.Core.Layout.Edge;
 using LineSegment = Microsoft.Msagl.Core.Geometry.Curves.LineSegment;
 using Point = Microsoft.Msagl.Core.Geometry.Point;
@@ -3818,14 +3810,13 @@ namespace Microsoft.Msagl.Layout.LargeGraphLayout
                     return true;
                 }
         */
-#if !NETCORE
-        public void SelectAllColoredEdgesIncidentTo(LgNodeInfo nodeInfo, SolidColorBrush c)
+        public void SelectAllColoredEdgesIncidentTo(LgNodeInfo nodeInfo, object color)
         {
             List<Edge> edges = nodeInfo.GeometryNode.Edges.ToList();
 
             //START-jyoti to select only the neighbors within the current zoom level
             List<Edge> filteredEdges = new List<Edge>();
-            Dictionary<Edge,SolidColorBrush> reselectEdges = new Dictionary<Edge, SolidColorBrush>();
+            Dictionary<Edge,object> reselectEdges = new Dictionary<Edge, object>();
 
             foreach (Edge edge in edges)
             {
@@ -3840,7 +3831,7 @@ namespace Microsoft.Msagl.Layout.LargeGraphLayout
                 {
                     if (nodeInfo.GeometryNode.Center == edge.Source.Center)
                         reselectEdges[edge] = _lgData.GeometryNodesToLgNodeInfos[edge.Target].Color;
-                    else reselectEdges[edge] = _lgData.GeometryNodesToLgNodeInfos[edge.Source].Color;
+                    else reselectEdges[edge] =_lgData.GeometryNodesToLgNodeInfos[edge.Source].Color;
                 }
                 
                  
@@ -3872,7 +3863,7 @@ namespace Microsoft.Msagl.Layout.LargeGraphLayout
                 _lgData.SelectEdges(edges);
             else
             {
-                _lgData.UnselectColoredEdges(edges,c);
+                _lgData.UnselectColoredEdges(edges, color);
 
                 //reselect the edges that have been deselected by the complcated case of "both endvertices selection"                
                 foreach (Edge edge in reselectEdges.Keys)
@@ -4014,7 +4005,7 @@ namespace Microsoft.Msagl.Layout.LargeGraphLayout
             SelectEdge(_lgData.GeometryEdgesToLgEdgeInfos[edge]);
         }
 
-#endif
+
 
         Rectangle GetLabelRectForScale(LgNodeInfo nodeInfo, double scale)
         {

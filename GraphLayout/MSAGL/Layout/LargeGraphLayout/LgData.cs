@@ -3,10 +3,6 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
-#if !NETCORE
-using System.Runtime.Remoting.Messaging;
-using System.Windows.Media;
-#endif
 using Microsoft.Msagl.Core.DataStructures;
 using Microsoft.Msagl.Core.Geometry;
 using Microsoft.Msagl.Core.Geometry.Curves;
@@ -281,7 +277,7 @@ namespace Microsoft.Msagl.Layout.LargeGraphLayout {
 
                 foreach (Rail r in railsOfEdge)
                 {
-                    if(r.Color==null) r.Color = new List<SolidColorBrush>();
+                    if(r.Color==null) r.Color = new List<object>();
                     if (r.Color.Contains(edge.Color) == false && edge.Color!=null ) r.Color.Add(edge.Color);
                     r.IsHighlighted = true;
                 }
@@ -408,7 +404,7 @@ namespace Microsoft.Msagl.Layout.LargeGraphLayout {
         }
 
 
-        public void UnselectColoredEdges(List<Edge> edgesToPutOff, SolidColorBrush c)
+        public void UnselectColoredEdges(List<Edge> edgesToPutOff, object color)
         {
             
             //do not put off all the edges, otherwise it will cause disconnected components in
@@ -427,7 +423,7 @@ namespace Microsoft.Msagl.Layout.LargeGraphLayout {
 
                         if (r.Color.Count >= 1)
                             if (!removeEdge.ContainsKey(e)) removeEdge[e] = true;
-                        r.Color.Remove(c);
+                        r.Color.Remove(color);
                     }
                 }
                 if (!removeEdge.ContainsKey(e)) e.Color = null;
