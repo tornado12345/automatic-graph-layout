@@ -1,3 +1,4 @@
+﻿
 using System.Collections.Generic;
 using Microsoft.Msagl.Core.Geometry;
 using Microsoft.Msagl.Core.Geometry.Curves;
@@ -6,6 +7,10 @@ using System.Linq;
 using System;
 using Microsoft.Msagl.Routing;
 using Microsoft.Msagl.DebugHelpers;
+using System.Diagnostics;
+using System.Threading;
+using System.Reflection.Emit;
+using Microsoft.Msagl.Layout.MDS;
 
 namespace Microsoft.Msagl.Layout.Layered {
 
@@ -87,8 +92,8 @@ namespace Microsoft.Msagl.Layout.Layered {
             //        p.Vertex(VertexId.OtherCorner), p.Vertex(VertexId.VertexB))).Select(c=>new DebugCurve(100,3,"brown", c)));
             //    foreach (var le in this.edgePath.LayerEdges)
             //        l.Add(new DebugCurve(100, 1, "blue", new LineSegment(db.anchors[le.Source].Origin, db.anchors[le.Target].Origin)));
-                
-            
+
+
             //   LayoutAlgorithmSettings.ShowDebugCurvesEnumeration(l);
             //    // Database(db, thinRightNodes.Select(p=>new Polyline(p.Parallelogram.Vertex(VertexId.Corner), p.Parallelogram.Vertex(VertexId.VertexA),
             //        //p.Parallelogram.Vertex(VertexId.OtherCorner), p.Parallelogram.Vertex(VertexId.VertexB)){Closed=true}).ToArray());
@@ -120,7 +125,8 @@ namespace Microsoft.Msagl.Layout.Layered {
             double t = 0, b = 0;
             if (nodeKind == NodeKind.Bottom) {
                 b = Single.MaxValue;//we don't have bottom boundaries here since they will be cut off
-            } else if (nodeKind == NodeKind.Top) {
+            }
+            else if (nodeKind == NodeKind.Top) {
                 t = Single.MaxValue;//we don't have top boundaries here since they will be cut off
             }
 
@@ -136,7 +142,8 @@ namespace Microsoft.Msagl.Layout.Layered {
                             b = anchor.BottomAnchor;
                         yield return u;
                     }
-                } else if (anchor.BottomAnchor > b) {
+                }
+                else if (anchor.BottomAnchor > b) {
                     if (!NodeUCanBeCrossedByNodeV(u, v)) {
                         b = anchor.BottomAnchor;
                         if (anchor.TopAnchor > t)
@@ -166,7 +173,8 @@ namespace Microsoft.Msagl.Layout.Layered {
                         b = Math.Max(b, anchor.BottomAnchor);
                         yield return u;
                     }
-                } else if (anchor.BottomAnchor > b + ApproximateComparer.DistanceEpsilon) {
+                }
+                else if (anchor.BottomAnchor > b + ApproximateComparer.DistanceEpsilon) {
                     if (!NodeUCanBeCrossedByNodeV(u, v)) {
                         t = Math.Max(t, anchor.TopAnchor);
                         b = anchor.BottomAnchor;
@@ -176,7 +184,7 @@ namespace Microsoft.Msagl.Layout.Layered {
             }
         }
 
-        #region Nodes and edges anylisis
+#region Nodes and edges anylisis
         bool IsVirtualVertex(int v) {
             return v >= this.originalGraph.Nodes.Count;
         }
@@ -258,9 +266,9 @@ namespace Microsoft.Msagl.Layout.Layered {
             return a > 0 && b < 0 || a < 0 && b > 0;
             //return (layerArrays.X[e.Source] - layerArrays.X[m.Source]) * (layerArrays.X[e.Target] - layerArrays.X[m.Target]) < 0;
         }
-        #endregion
+#endregion
 
-        #region Node queries
+#region Node queries
         //here u is a virtual vertex
         private LayerEdge IncomingEdge(int u) {
             return layeredGraph.InEdgeOfVirtualNode(u);
@@ -281,15 +289,15 @@ namespace Microsoft.Msagl.Layout.Layered {
         private IEnumerable<int> LeftBoundaryNodesOfANode(int i, NodeKind nodeKind) {
             return FillLeftTopAndBottomVerts(NodeLayer(i), layerArrays.X[i], nodeKind);
         }
-        #endregion
+#endregion
 
-        internal ICurve GetSpline() {
-            CreateRefinedPolyline();
+        internal ICurve GetSpline(bool optimizeShortEdges) {
+            CreateRefinedPolyline(optimizeShortEdges);
             return CreateSmoothedPolyline();
         }
 
-        #region debug stuff
-#if DEBUGGLEE
+#region debug stuff
+#if TEST_MSAGL
         //   static int calls;
         // bool debug { get { return calls == 5;} }
 
@@ -301,13 +309,19 @@ namespace Microsoft.Msagl.Layout.Layered {
         }
 #endif
 
-        #endregion
+#endregion
 
         internal SmoothedPolyline GetPolyline {
             get {
                 System.Diagnostics.Debug.Assert(this.headSite != null);
                 return new SmoothedPolyline(headSite);
             }
+        }
+
+        bool LineSegIntersectBound(Point a, Point b) {
+            var l = new LineSegment(a, b);
+            return CurveIntersectsHierarchy(l, leftHierarchy) || CurveIntersectsHierarchy(l, thinLeftHierarchy) ||
+                CurveIntersectsHierarchy(l, rightHierarchy) || CurveIntersectsHierarchy(l, thinRightHierarchy);
         }
 
         bool SegIntersectRightBound(Site a, Site b) {
@@ -341,7 +355,8 @@ namespace Microsoft.Msagl.Layout.Layered {
                     s = b;
                     return true;
                 }
-            } else {//right turn at s
+            }
+            else {//right turn at s
                 if (!SegIntersectLeftBound(s, s.Next.Next) && !SegIntersectRightBound(s, s.Next.Next)) {
                     Site n = s.Next.Next;
                     s.Next = n;                  //forget about s.next
@@ -377,7 +392,7 @@ namespace Microsoft.Msagl.Layout.Layered {
             if (n != null)
                 return CurveIntersectsHierarchy(lineSeg, n.LeftSon) || CurveIntersectsHierarchy(lineSeg, n.RightSon);
 
-            return Curve.GetAllIntersections(lineSeg, ((ParallelogramNodeOverICurve)hierarchy).Seg, false).Count > 0;
+            return Curve.CurveCurveIntersectionOne(lineSeg, ((ParallelogramNodeOverICurve)hierarchy).Seg, false) != null;
 
 
         }
@@ -401,7 +416,7 @@ namespace Microsoft.Msagl.Layout.Layered {
             return ret;
         }
 
-        private void CreateRefinedPolyline() {
+        private void CreateRefinedPolyline(bool optimizeShortEdges) {
             CreateInitialListOfSites();
 
             Site topSite = this.headSite;
@@ -412,19 +427,199 @@ namespace Microsoft.Msagl.Layout.Layered {
                 topSite = bottomSite;
             }
             TryToRemoveInflections();
+            if (optimizeShortEdges)
+                OptimizeShortPath();
         }
 
-        private void RefineBeetweenNeighborLayers(Site topSite, int topNode, int bottomNode)
-        {
+        private void RefineBeetweenNeighborLayers(Site topSite, int topNode, int bottomNode) {
             RefinerBetweenTwoLayers.Refine(topNode, bottomNode, topSite, this.anchors,
                                            this.layerArrays, this.layeredGraph, this.originalGraph,
                                            this.settings.LayerSeparation);
         }
 
         private void CreateInitialListOfSites() {
-            Site currentSite = this.headSite = new Site(EdgePathPoint(0));
+            Site currentSite = headSite = new Site(EdgePathPoint(0));
             for (int i = 1; i <= edgePath.Count; i++)
                 currentSite = new Site(currentSite, EdgePathPoint(i));
+        }
+
+        Site TailSite { get { Site s = headSite; while (s.Next != null) s = s.Next; return s; } }
+
+        void OptimizeForThreeSites() {
+            Debug.Assert(edgePath.LayerEdges.Count == 2);
+            int top = EdgePathNode(0);
+            int bottom = EdgePathNode(2);
+            Anchor a = anchors[top];
+            Anchor b = anchors[bottom];
+            double ax = a.X;
+            double bx = b.X;
+            if (ApproximateComparer.Close(ax, bx))
+                return;
+            int sign;
+            if (!FindLegalPositions(a, b, ref ax, ref bx, out sign))
+                return;
+            double ratio = (a.Y - b.Y) / (a.Bottom - b.Top);
+            double xc = 0.5 * (ax + bx);
+            double half = sign * (ax - bx) * 0.5;
+            ax = xc + ratio * half * sign;
+            bx = xc - ratio * half * sign;
+
+            headSite.Point = new Point(ax, a.Y);
+            var ms = headSite.Next;
+            double mY = ms.Point.Y;
+            ms.Point = new Point(MiddlePos(ax, bx, a, b, mY), mY);
+            ms.Next.Point = new Point(bx, b.Y);
+            Anchor ma = anchors[EdgePathNode(1)];
+            ma.X = ms.Point.X;
+            //show(new DebugCurve(200, 3, "yellow", new LineSegment(ax, a.Y, ms.Point.X, ms.Point.Y)),
+            //    new DebugCurve(200, 3, "green", new LineSegment(bx, b.Y, ms.Point.X, ms.Point.Y)));
+        }
+
+        void OptimizeForTwoSites() {
+            Debug.Assert(edgePath.LayerEdges.Count == 1);
+            int top = EdgePathNode(0);
+            int bottom = EdgePathNode(1);
+            Anchor a = anchors[top];
+            Anchor b = anchors[bottom];
+            double ax = a.X;
+            double bx = b.X;
+            if (ApproximateComparer.Close(ax, bx))
+                return;
+            int sign;
+            if (!FindPositions(a, b, ref ax, ref bx, out sign))
+                return;
+            double ratio = (a.Y - b.Y) / (a.Bottom - b.Top);
+            double xc = 0.5 * (ax + bx);
+            double half = sign * (ax - bx) * 0.5;
+            ax = xc + ratio * half * sign;
+            bx = xc - ratio * half * sign;
+
+            headSite.Point = new Point(ax, a.Y);
+            headSite.Next.Point = new Point(bx, b.Y);
+        }
+
+        private bool FindLegalPositions(Anchor a, Anchor b, ref double ax, ref double bx, out int sign) {
+            if (!FindPositions(a, b, ref ax, ref bx, out sign))
+                return false;
+            int count = 10;
+            do {
+                if (PositionsAreLegal(ax, bx, sign, a, b, EdgePathNode(1)))
+                    return true;
+                ax = (ax + a.X) / 2.0;
+                bx = (bx + b.X) / 2.0;
+            } while (count++ < 10);
+            return false;
+        }
+
+        private bool FindPositions(Anchor a, Anchor b, ref double ax, ref double bx, out int sign) {
+            double overlapMin, overlapMax;
+
+            if (ax < bx) {
+                sign = 1;
+                overlapMin = Math.Max(ax, b.Left);
+                overlapMax = Math.Min(a.Right, bx);
+            }
+            else {
+                sign = -1;
+                overlapMin = Math.Max(a.Left, bx);
+                overlapMax = Math.Min(b.Right, ax); ;
+            }
+            if (overlapMin <= overlapMax) {
+                ax = bx = 0.5 * (overlapMin + overlapMax);
+            }
+            else {
+                if (OriginToOriginSegCrossesAnchorSide(a, b))
+                    return false;
+                if (sign == 1) {
+                    ax = a.Right - 0.1 * a.RightAnchor;
+                    bx = b.Left;
+                }
+                else {
+                    ax = a.Left + 0.1 * a.LeftAnchor;
+                    bx = b.Right;
+                }
+            }
+            return true;
+        }
+
+        private bool OriginToOriginSegCrossesAnchorSide(Anchor a, Anchor b) {
+            Debug.Assert(a.Y > b.Y);
+            var seg = new LineSegment(a.Origin, b.Origin);
+            return (a.X < b.X
+                &&
+                Curve.CurvesIntersect(seg, new LineSegment(a.RightBottom, a.RightTop))
+                    ||
+                    Curve.CurvesIntersect(seg, new LineSegment(b.LeftBottom, a.LeftTop)))
+                    ||
+                    (a.X > b.X
+                    &&
+                    Curve.CurvesIntersect(seg, new LineSegment(a.LeftBottom, a.LeftTop))
+                    ||
+                    Curve.CurvesIntersect(seg, new LineSegment(b.RightBottom, a.RightTop)));
+        }
+
+
+        private void OptimizeShortPath() {
+            if (edgePath.Count > 2)
+                return;
+            if (edgePath.Count == 2 && headSite.Next.Next != null && headSite.Next.Next.Next == null && anchors[EdgePathNode(1)].Node == null) {
+                OptimizeForThreeSites();
+            }
+            else {
+                if (edgePath.Count == 1)
+                    OptimizeForTwoSites();
+            }
+        }
+
+#if !SHARPKIT
+        //void show(params DebugCurve[] cs) {
+        //    var l = new List<DebugCurve>();
+        //    l.AddRange(anchors.Select(aa => new DebugCurve(100, 1, "red", aa.PolygonalBoundary)));
+        //    l.AddRange(thinRightNodes.Select(n => n.Parallelogram).Select(p => new Polyline(p.Vertex(VertexId.Corner), p.Vertex(VertexId.VertexA),
+        //          p.Vertex(VertexId.OtherCorner), p.Vertex(VertexId.VertexB))).Select(c => new DebugCurve(100, 3, "brown", c)));
+        //    foreach (var le in this.edgePath.LayerEdges)
+        //        l.Add(new DebugCurve(100, 1, "blue", new LineSegment(anchors[le.Source].Origin, anchors[le.Target].Origin)));
+        //    l.AddRange(cs);
+        //    LayoutAlgorithmSettings.ShowDebugCurvesEnumeration(l);
+        //    // Database(db, thinRightNodes.Select(p=>new Polyline(p.Parallelogram.Vertex(VertexId.Corner), p.Parallelogram.Vertex(VertexId.VertexA),
+        //    //p.Parallelogram.Vertex(VertexId.OtherCorner), p.Parallelogram.Vertex(VertexId.VertexB)){Closed=true}).ToArray());
+        //}
+#endif
+
+        private bool PositionsAreLegal(double sax, double sbx, int sign, Anchor a, Anchor b, int middleNodeIndex) {
+
+            if (!ApproximateComparer.Close(sax, sbx) && (sax - sbx) * sign > 0)
+                return false;
+            Anchor mAnchor = anchors[middleNodeIndex];
+            double mx = MiddlePos(sax, sbx, a, b, mAnchor.Y);
+            if (!MiddleAnchorLegal(mx, middleNodeIndex, mAnchor))
+                return false;
+
+            return !LineSegIntersectBound(new Point(sax, a.Bottom), new Point(sbx, b.Top));
+        }
+
+        private bool MiddleAnchorLegal(double mx, int middleNodeIndex, Anchor mAnchor) {
+            var mLayer = NodeLayer(middleNodeIndex);
+            int pos = this.layerArrays.X[middleNodeIndex];
+            double shift = mx - mAnchor.X;
+            if (pos > 0) {
+                Anchor l = anchors[mLayer[pos - 1]];
+                if (l.Right > shift + mAnchor.Left)
+                    return false;
+            }
+            if (pos < mLayer.Length - 1) {
+                Anchor r = anchors[mLayer[pos + 1]];
+                if (r.Left < shift + mAnchor.Right)
+                    return false;
+            }
+            return true;
+        }
+
+        private double MiddlePos(double sax, double sbx, Anchor a, Anchor b, double mY) {
+            double u = a.Y - mY;
+            double l = mY - b.Y;
+            Debug.Assert(u >= 0 && l >= 0);
+            return (sax * u + sbx * l) / (u + l);
         }
 
         private void TryToRemoveInflections() {
@@ -450,7 +645,8 @@ namespace Microsoft.Msagl.Layout.Layered {
                         sign = 1;
                     else if (nsign < 0)
                         sign = -1;
-                } else {
+                }
+                else {
                     if (sign * nsign < 0)
                         return false;
                 }
@@ -460,7 +656,7 @@ namespace Microsoft.Msagl.Layout.Layered {
 
 
 
-        #region Edge path node access
+#region Edge path node access
         Point EdgePathPoint(int i) {
             return anchors[EdgePathNode(i)].Origin;
         }
@@ -473,9 +669,9 @@ namespace Microsoft.Msagl.Layout.Layered {
                 v = edgePath[i].Source;
             return v;
         }
-        #endregion
+#endregion
 
-        #region Fitting Bezier segs
+#region Fitting Bezier segs
         Curve CreateSmoothedPolyline() {
             RemoveVerticesWithNoTurns();
             Curve curve = new Curve();
@@ -485,8 +681,10 @@ namespace Microsoft.Msagl.Layout.Layered {
             if (Curve.FindCorner(a, out b, out c)) {
                 CreateFilletCurve(curve, ref a, ref b, ref c);
                 curve = ExtendCurveToEndpoints(curve);
-            } else
-                curve.AddSegment(new LineSegment(EdgePathPoint(0), EdgePathPoint(edgePath.Count)));
+            }
+            else {
+                curve.AddSegment(new LineSegment(headSite.Point, TailSite.Point));
+            }
             return curve;
         }
 
@@ -509,13 +707,13 @@ namespace Microsoft.Msagl.Layout.Layered {
         }
 
         private Curve ExtendCurveToEndpoints(Curve curve) {
-            Point p = this.EdgePathPoint(0);
+            Point p = headSite.Point;
             if (!ApproximateComparer.Close(p, curve.Start)) {
                 Curve nc = new Curve();
                 nc.AddSegs(new LineSegment(p, curve.Start), curve);
                 curve = nc;
             }
-            p = this.EdgePathPoint(edgePath.Count);
+            p = TailSite.Point;
             if (!ApproximateComparer.Close(p, curve.End))
                 curve.AddSegment(new LineSegment(curve.End, p));
             return curve;
@@ -574,10 +772,12 @@ namespace Microsoft.Msagl.Layout.Layered {
                 ParallelogramBinaryTreeNode n = tree as ParallelogramBinaryTreeNode;
                 if (n != null) {
                     return BezierSegIntersectsTree(seg, n.LeftSon) || BezierSegIntersectsTree(seg, n.RightSon);
-                } else
+                }
+                else
                     return BezierSegIntersectsBoundary(seg, ((ParallelogramNodeOverICurve)tree).Seg);
 
-            } else return false;
+            }
+            else return false;
         }
 
         static bool BezierSegIntersectsBoundary(CubicBezierSegment seg, ICurve curve) {
@@ -586,7 +786,8 @@ namespace Microsoft.Msagl.Layout.Layered {
                 if (c != null) {
                     if (Curve.RealCutWithClosedCurve(x, c, false))
                         return true;
-                } else {
+                }
+                else {
                     //curve is a line from a thin hierarchy that's forbidden to touch
                     return true;
                 }
@@ -602,6 +803,6 @@ namespace Microsoft.Msagl.Layout.Layered {
         //    return new CubicBezierSegment(s, t + s / 3.0, t + e / 3.0, e);
         //}
 
-        #endregion
+#endregion
     }
 }

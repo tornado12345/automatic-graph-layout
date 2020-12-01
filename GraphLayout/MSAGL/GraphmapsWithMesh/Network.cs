@@ -16,12 +16,20 @@ namespace Microsoft.Msagl.GraphmapsWithMesh
         {
             N = numV;
             E = numE;
+#if SHARPKIT //https://code.google.com/p/sharpkit/issues/detail?id=340
+            throw new InvalidOperationException();
+#else
             M = new int[numV + 1, numV + 1];
+#endif
         }
         public Network(int numV, int numE)
         {
             N = numV;
+#if SHARPKIT //https://code.google.com/p/sharpkit/issues/detail?id=340
+            throw new InvalidOperationException();
+#else
             M = new int[numV + 1, numV + 1];
+#endif
             int v2;
             while (E < numE)
             {
@@ -38,7 +46,6 @@ namespace Microsoft.Msagl.GraphmapsWithMesh
                     M[v1, v2] = 1;
                     M[v2, v1] = 1;
                 }
-                //Console.WriteLine(E);
             }
         }
     }

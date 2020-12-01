@@ -11,14 +11,12 @@ using Microsoft.Msagl.Routing;
 
 namespace Microsoft.Msagl.Core.Layout {
 
-#if !SILVERLIGHT
     ///<summary>
     /// controls many properties of the layout algorithm
     ///</summary>
     [Description("Specifies the layout algorithm parametres")]
     [TypeConverter(typeof (ExpandableObjectConverter))]
     [DisplayName("Layout algorithm settings")]
-#endif
 #if TEST_MSAGL
     [Serializable]
 #endif
@@ -33,7 +31,7 @@ namespace Microsoft.Msagl.Core.Layout {
             set { edgeRoutingSettings = value; }
         }
         #region
-#if REPORTING
+#if TEST_MSAGL
         bool reporting;
 
         /// <summary>
@@ -130,7 +128,13 @@ namespace Microsoft.Msagl.Core.Layout {
             get { return clusterMargin; }
             set { clusterMargin = value; }
         }
-        
+
+        private bool liftCrossEdges = true;
+        /// <summary>While laying out clusters, consider edges connecting subnodes as if they were connecting the clusters directly, for the purpose of arranging clusters. This usually results in a better layout.</summary>
+        public bool LiftCrossEdges {
+            get { return liftCrossEdges; }
+            set { liftCrossEdges = value; }
+        }
 
         /// <summary>
         /// Clones the object

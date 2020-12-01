@@ -159,7 +159,7 @@ namespace TestGraphmaps {
 
         
         protected override void OnStartup(StartupEventArgs e) {
-#if DEBUG
+#if TEST_MSAGL
             DisplayGeometryGraph.SetShowFunctions();
 #endif
 
@@ -195,7 +195,7 @@ namespace TestGraphmaps {
             _argsParser = SetArgsParser(Args);
 
             if (_argsParser.OptionIsUsed(BackgroundColorOption)) {
-                var bc = _argsParser.GetValueOfOptionWithAfterString(BackgroundColorOption);
+                var bc = _argsParser.GetStringOptionValue(BackgroundColorOption);
                 _graphViewerPanel.Background = (SolidColorBrush)(new BrushConverter().ConvertFrom(bc));
             }
 
@@ -290,7 +290,7 @@ namespace TestGraphmaps {
             }
             if (_argsParser.OptionIsUsed("-no_tiles"))
                 _graphViewer.DefaultLargeLayoutSettings.GenerateTiles = false;
-            string labelH = _argsParser.GetValueOfOptionWithAfterString("-labelH");
+            string labelH = _argsParser.GetStringOptionValue("-labelH");
             if (labelH != null) {
                 double h;
                 if (double.TryParse(labelH, out h)) {
@@ -305,7 +305,7 @@ namespace TestGraphmaps {
         }
 
         void CheckRailColors() {
-            string railColors = _argsParser.GetValueOfOptionWithAfterString(RailColorsOption);
+            string railColors = _argsParser.GetStringOptionValue(RailColorsOption);
             if (railColors != null)
             {
                 _graphViewer.DefaultLargeLayoutSettings.RailColors = railColors.Split(',');
@@ -313,42 +313,42 @@ namespace TestGraphmaps {
         }
 
         void CheckSelectionColors() {
-            string selColors = _argsParser.GetValueOfOptionWithAfterString(SelectionColorsOption);
+            string selColors = _argsParser.GetStringOptionValue(SelectionColorsOption);
             if (selColors != null) {
                 _graphViewer.DefaultLargeLayoutSettings.SelectionColors = selColors.Split(',');
             }
         }
 
         void CheckRailQuota() {
-            string railQuota = _argsParser.GetValueOfOptionWithAfterString("-rt");
+            string railQuota = _argsParser.GetStringOptionValue("-rt");
             if (railQuota != null) {
                 int n;
                 if (Int32.TryParse(railQuota, out n))
                     _graphViewer.DefaultLargeLayoutSettings.MaxNumberOfRailsPerTile = n;
                 else
-                    Console.WriteLine("cannot parse {0}", railQuota);
+                    System.Diagnostics.Debug.WriteLine("cannot parse {0}", railQuota);
             }
         }
         void CheckNodeQuota()
         {
-            string nodeQuota = _argsParser.GetValueOfOptionWithAfterString(NodeQuotaOption);
+            string nodeQuota = _argsParser.GetStringOptionValue(NodeQuotaOption);
             if (nodeQuota != null)
             {
                 int n;
                 if (Int32.TryParse(nodeQuota, out n))
                     _graphViewer.DefaultLargeLayoutSettings.MaxNumberOfNodesPerTile = n;
                 else
-                    Console.WriteLine("cannot parse {0}", nodeQuota);
+                    System.Diagnostics.Debug.WriteLine("cannot parse {0}", nodeQuota);
             }
         }
         void CheckIncreaseNodeQuota() {
-            string incrNodeQuota = _argsParser.GetValueOfOptionWithAfterString(IncreaseNodeQuotaOption);
+            string incrNodeQuota = _argsParser.GetStringOptionValue(IncreaseNodeQuotaOption);
             if (incrNodeQuota != null) {
                 double inq;
                 if (Double.TryParse(incrNodeQuota, out inq))
                     _graphViewer.DefaultLargeLayoutSettings.IncreaseNodeQuota = inq;
                 else
-                    Console.WriteLine("cannot parse {0}", incrNodeQuota);
+                    System.Diagnostics.Debug.WriteLine("cannot parse {0}", incrNodeQuota);
             }
         }
 
@@ -390,11 +390,11 @@ namespace TestGraphmaps {
         void GraphViewerLoaded(object sender, EventArgs e) {
             if (_graphViewerIsLoaded) return;
             _graphViewerIsLoaded = true;
-            string fileName = _argsParser.GetValueOfOptionWithAfterString(FileOption);
+            string fileName = _argsParser.GetStringOptionValue(FileOption);
             if (fileName != null)
                 CreateAndLayoutGraph(fileName);
             else {
-                string fileList = _argsParser.GetValueOfOptionWithAfterString(FileListOption);
+                string fileList = _argsParser.GetStringOptionValue(FileListOption);
                 if (fileList != null)
                     ProcessFileList(fileList);
             }
@@ -406,12 +406,12 @@ namespace TestGraphmaps {
                 var fileListDir = Path.GetDirectoryName(fileList);
                 var streamReader = new StreamReader(fileList);
 //                _graphViewer.LayoutStarted +=
-//                    (a, b) => Console.WriteLine("processing {0}", _currentFileNameFromList);
+//                    (a, b) => System.Diagnostics.Debug.WriteLine("processing {0}", _currentFileNameFromList);
 //                _graphViewer.LayoutComplete += (a, b) =>
 //                    {
-//                        Console.WriteLine("Done with {0}", _currentFileNameFromList);
+//                        System.Diagnostics.Debug.WriteLine("Done with {0}", _currentFileNameFromList);
 //                        if (!SetupNextRun(streamReader, fileListDir)) {
-//                            Console.WriteLine("done with the list");
+//                            System.Diagnostics.Debug.WriteLine("done with the list");
 //                        }
 //                    };
 
@@ -421,7 +421,7 @@ namespace TestGraphmaps {
                 } while (_currentFileNameFromList != null);
             }
             catch (Exception e) {
-                Console.WriteLine(e.Message);
+                System.Diagnostics.Debug.WriteLine(e.Message);
             }
         }
 
@@ -495,7 +495,7 @@ namespace TestGraphmaps {
             _argsParser.AddOptionWithAfterStringWithHelp("-labelH", "the height of labels");
 
             if (!_argsParser.Parse()) {
-                Console.WriteLine(_argsParser.UsageString());
+                System.Diagnostics.Debug.WriteLine(_argsParser.UsageString());
                 Environment.Exit(1);
             }
             return _argsParser;
@@ -724,7 +724,7 @@ namespace TestGraphmaps {
                         ProcessMsagl(fileName);
                         return;
                     default:
-                        Console.WriteLine("format {0} is not supported, cannot process {1}", extension, fileName);
+                        System.Diagnostics.Debug.WriteLine("format {0} is not supported, cannot process {1}", extension, fileName);
                         return;
                 }
                 SaveMsaglAndTiles(fileName);
@@ -741,12 +741,12 @@ namespace TestGraphmaps {
         }
 
         void ProcessMsagl(string fileName) {
-            Console.WriteLine("reading {0}", fileName);
+            System.Diagnostics.Debug.WriteLine("reading {0}", fileName);
             var graph = Graph.Read(fileName);
 
             if (graph != null) {
                 if (_argsParser.OptionIsUsed(PrintMaxNodeDegreeOption)) {
-                    Console.WriteLine("max node degree {0}",
+                    System.Diagnostics.Debug.WriteLine("max node degree {0}",
                         graph.Nodes.Max(n => n.OutEdges.Count() + n.InEdges.Count() + n.SelfEdges.Count()));
                     Environment.Exit(0);
                 }
@@ -761,7 +761,7 @@ namespace TestGraphmaps {
                         graph.LayoutAlgorithmSettings.NodeSeparation);
                 }
             }
-            Console.WriteLine("passing graph to the control");
+            System.Diagnostics.Debug.WriteLine("passing graph to the control");
             PassGraphToControl(graph, fileName);
         }
 
@@ -820,7 +820,7 @@ namespace TestGraphmaps {
         }
 
         void ProcessDgml(string fileName) {
-#if GRAPH_MODEL
+#if TEST_MSAGL
             Graph gwgraph = DgmlParser.DgmlParser.Parse(fileName);
             if (gwgraph != null) {
                 SetLayoutSettings(gwgraph);
@@ -854,7 +854,7 @@ namespace TestGraphmaps {
                 PassGraphToGraphViewer(gwgraph, fileName);
                 return true;
             }
-            Console.WriteLine("Cannot parse {3} {2} line {0} column {1}", line, column, msg, fileName);
+            System.Diagnostics.Debug.WriteLine("Cannot parse {3} {2} line {0} column {1}", line, column, msg, fileName);
             return false;
         }
 
@@ -863,7 +863,7 @@ namespace TestGraphmaps {
             if (_graphViewer.Graph == null) return;
             string rootName = FileNameWithoutExtension(fileName);
             string msaglFileName = rootName + ".msagl";
-            Console.WriteLine("saving to {0}", msaglFileName);
+            System.Diagnostics.Debug.WriteLine("saving to {0}", msaglFileName);
             _graphViewer.Graph.Write(msaglFileName);
             if (_graphViewer.DefaultLargeLayoutSettings.GenerateTiles) {
                 CreateTileDirectoryName(fileName);
@@ -874,7 +874,7 @@ namespace TestGraphmaps {
 /*
         bool OkToCreateOrOverwriteMsaglFile(string fileName) {
             string msaglFileName = CreateMsaglFileNameFromDotName(fileName);
-            Console.WriteLine(msaglFileName);
+            System.Diagnostics.Debug.WriteLine(msaglFileName);
             if (File.Exists(msaglFileName)) {
                 string message = String.Format("Do you want to overwrite {0}?", msaglFileName);
                 MessageBoxResult result = MessageBox.Show(message, "confirm overwrite", MessageBoxButton.YesNo);
@@ -946,7 +946,7 @@ namespace TestGraphmaps {
             else if (mdsIsUsed)
                 gwgraph.LayoutAlgorithmSettings = GetMdsLayoutSettings();
             if (_argsParser.OptionIsUsed(NodeSeparationOption)) {
-                var ns = double.Parse(_argsParser.GetValueOfOptionWithAfterString(NodeSeparationOption));
+                var ns = double.Parse(_argsParser.GetStringOptionValue(NodeSeparationOption));
                 if (ns != 0)
                     gwgraph.LayoutAlgorithmSettings.NodeSeparation = ns;
             }

@@ -9,10 +9,8 @@ namespace Microsoft.Msagl.Drawing {
     /// <summary>
     /// Attribute of a Node.
     /// </summary>
-#if !SILVERLIGHT
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Attr"), Description("Node layout attributes."),
     TypeConverterAttribute(typeof(ExpandableObjectConverter))]
-#endif
     [Serializable]
     public class NodeAttr : AttributeBase {
 
@@ -48,11 +46,14 @@ namespace Microsoft.Msagl.Drawing {
             get { return yRad; }
             set { yRad = value; }
         }
-       
 
+        private LgNodeInfo.LabelPlacement clusterLabelPlacement = LgNodeInfo.LabelPlacement.Top;
+        /// <summary>Informs the rendering layer on where the margin for a cluster label is supposed to appear.</summary>
+        public LgNodeInfo.LabelPlacement ClusterLabelMargin {
+            get { return clusterLabelPlacement; }
+            set { clusterLabelPlacement = value; }
+        }
         
-
-
         /// <summary>
         /// ToString
         /// </summary>
@@ -101,35 +102,6 @@ namespace Microsoft.Msagl.Drawing {
                 RaiseVisualsChangedEvent(this, null);
             }
         }
-
-        
-
-        //void AddFilledStyle(){
-        //    if(Array.IndexOf(styles,Style.filled)==-1){
-        //        Style []st=new Style[styles.Length+1];
-        //        st[0]=Style.filled;
-        //        styles.CopyTo(st,1);
-        //        styles=st;
-        //    }
-        //}
-
-        //void RemoveFilledStyle()
-        //{
-
-        //  int index;
-        //  if ((index = Array.IndexOf(styles, Style.filled)) != -1)
-        //  {
-        //    Style[] st = new Style[styles.Length - 1];
-
-        //    int count = 0;
-        //    for (int j = 0; j < styles.Length; j++)
-        //    {
-        //      if (j != index)
-        //        st[count++] = styles[j];
-        //    }
-        //    styles = st;
-        //  }
-        //}
 
         
         internal Shape shape = Shape.Box;

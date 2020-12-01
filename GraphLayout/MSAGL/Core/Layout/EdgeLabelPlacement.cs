@@ -57,7 +57,6 @@ namespace Microsoft.Msagl.Core.Layout {
         /// </summary>
         public bool ScaleCollisionGranularity { get; set; }
 
-#if NET4
         bool parallelProcessingEnabled = true;
 
         /// <summary>
@@ -67,7 +66,6 @@ namespace Microsoft.Msagl.Core.Layout {
             get { return parallelProcessingEnabled; }
             set { parallelProcessingEnabled = value; }
         }
-#endif
 
         /// <summary>
         ///     Constructs an edge label placer that places all labels in the graph.
@@ -170,7 +168,7 @@ namespace Microsoft.Msagl.Core.Layout {
             IEnumerable<Label> sortedLabels = lbs.OrderByDescending(l => Math.Abs(0.5 - l.PlacementOffset))
                                                  .ThenBy(l => edgePoints[((Edge) l.GeometryParent)].Count);
 
-#if NET4 && PARALLEL_SUPPORTED
+#if PARALLEL_SUPPORTED
             if (ParallelProcessingEnabled && lbs.Length > 50)
                 ParallelUtilities.ForEach(sortedLabels, PlaceLabel, ProgressSteps);
             else
@@ -703,6 +701,19 @@ namespace Microsoft.Msagl.Core.Layout {
                 points.Add(new KeyValuePair<double, Point>(curve.ParEnd, curve.End));
             }
             return points;
+        }
+
+        /// <summary>
+        /// Places the given labels at their default positions.  Only avoids overlaps with the edge and source/target node that the label is connected to.
+        /// </summary>
+        public static void PlaceLabelsAtDefaultPositions(CancelToken cancelToken, IEnumerable<Edge> edges) {
+            ValidateArg.IsNotNull(edges, "edges");
+            foreach (Edge edge in edges) {
+                if (edge.Labels.Count > 0) {
+                    EdgeLabelPlacement placer = new EdgeLabelPlacement(new[] { edge.Source, edge.Target }, new[] { edge });
+                    placer.Run(cancelToken);
+                }
+            }
         }
     }
 }
